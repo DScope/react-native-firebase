@@ -20,7 +20,6 @@ import android.service.notification.StatusBarNotification;
 import android.support.annotation.RequiresApi;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
-
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -28,22 +27,19 @@ import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
-
-import org.json.JSONException;
-import org.json.JSONObject;
-
+import io.invertase.firebase.Utils;
+import io.invertase.firebase.messaging.BundleJSONConverter;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
-
 import javax.annotation.Nullable;
-
-import io.invertase.firebase.Utils;
-import io.invertase.firebase.messaging.BundleJSONConverter;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 class RNFirebaseNotificationManager {
-  static final String SCHEDULED_NOTIFICATION_EVENT = "notifications-scheduled-notification";
+  static final String SCHEDULED_NOTIFICATION_EVENT =
+    "notifications-scheduled-notification";
   private static final String PREFERENCES_KEY = "RNFNotifications";
   private static final String TAG = "RNFNotificationManager";
   private AlarmManager alarmManager;
@@ -58,10 +54,15 @@ class RNFirebaseNotificationManager {
   }
 
   RNFirebaseNotificationManager(Context context) {
-    this.alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+    this.alarmManager =
+      (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
     this.context = context;
-    this.notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-    this.preferences = context.getSharedPreferences(PREFERENCES_KEY, Context.MODE_PRIVATE);
+    this.notificationManager =
+      (NotificationManager) context.getSystemService(
+        Context.NOTIFICATION_SERVICE
+      );
+    this.preferences =
+      context.getSharedPreferences(PREFERENCES_KEY, Context.MODE_PRIVATE);
   }
 
   static int getResourceId(Context context, String type, String image) {
@@ -80,9 +81,16 @@ class RNFirebaseNotificationManager {
     } else {
       int soundResourceId = getResourceId(context, "raw", sound);
       if (soundResourceId == 0) {
-        soundResourceId = getResourceId(context, "raw", sound.substring(0, sound.lastIndexOf('.')));
+        soundResourceId =
+          getResourceId(
+            context,
+            "raw",
+            sound.substring(0, sound.lastIndexOf('.'))
+          );
       }
-      return Uri.parse("android.resource://" + context.getPackageName() + "/" + soundResourceId);
+      return Uri.parse(
+        "android.resource://" + context.getPackageName() + "/" + soundResourceId
+      );
     }
   }
 
@@ -94,10 +102,7 @@ class RNFirebaseNotificationManager {
         cancelAlarm(notificationId);
       }
 
-      preferences
-        .edit()
-        .clear()
-        .apply();
+      preferences.edit().clear().apply();
 
       promise.resolve(null);
     } catch (SecurityException e) {
@@ -115,16 +120,17 @@ class RNFirebaseNotificationManager {
   void cancelNotification(String notificationId, Promise promise) {
     try {
       cancelAlarm(notificationId);
-      preferences
-        .edit()
-        .remove(notificationId)
-        .apply();
+      preferences.edit().remove(notificationId).apply();
       promise.resolve(null);
     } catch (SecurityException e) {
       // TODO: Identify what these situations are
       // In some devices/situations cancelAllLocalNotifications can throw a SecurityException.
       Log.e(TAG, e.getMessage());
-      promise.reject("notification/cancel_notification_error", "Could not cancel notifications", e);
+      promise.reject(
+        "notification/cancel_notification_error",
+        "Could not cancel notifications",
+        e
+      );
     }
   }
 
@@ -137,7 +143,9 @@ class RNFirebaseNotificationManager {
 
   void createChannelGroup(ReadableMap channelGroupMap) {
     if (Build.VERSION.SDK_INT >= 26) {
-      NotificationChannelGroup channelGroup = parseChannelGroupMap(channelGroupMap);
+      NotificationChannelGroup channelGroup = parseChannelGroupMap(
+        channelGroupMap
+      );
       notificationManager.createNotificationChannelGroup(channelGroup);
     }
   }
@@ -146,7 +154,9 @@ class RNFirebaseNotificationManager {
     if (Build.VERSION.SDK_INT >= 26) {
       List<NotificationChannelGroup> channelGroups = new ArrayList<>();
       for (int i = 0; i < channelGroupsArray.size(); i++) {
-        NotificationChannelGroup channelGroup = parseChannelGroupMap(channelGroupsArray.getMap(i));
+        NotificationChannelGroup channelGroup = parseChannelGroupMap(
+          channelGroupsArray.getMap(i)
+        );
         channelGroups.add(channelGroup);
       }
       notificationManager.createNotificationChannelGroups(channelGroups);
@@ -183,23 +193,20 @@ class RNFirebaseNotificationManager {
 
   void displayScheduledNotification(Bundle notification) {
     // If this isn't a repeated notification, clear it from the scheduled notifications list
-    if (!notification
-      .getBundle("schedule")
-      .containsKey("repeated")
-      || !notification
-      .getBundle("schedule")
-      .getBoolean("repeated")) {
+    if (
+      !notification.getBundle("schedule").containsKey("repeated") ||
+      !notification.getBundle("schedule").getBoolean("repeated")
+    ) {
       String notificationId = notification.getString("notificationId");
-      preferences
-        .edit()
-        .remove(notificationId)
-        .apply();
+      preferences.edit().remove(notificationId).apply();
     }
 
     if (Utils.isAppInForeground(context)) {
       // If the app is in the foreground, broadcast the notification to the RN Application
       // It is up to the JS to decide whether to display the notification
-      Intent scheduledNotificationEvent = new Intent(SCHEDULED_NOTIFICATION_EVENT);
+      Intent scheduledNotificationEvent = new Intent(
+        SCHEDULED_NOTIFICATION_EVENT
+      );
       scheduledNotificationEvent.putExtra("notification", notification);
       LocalBroadcastManager
         .getInstance(context)
@@ -212,7 +219,9 @@ class RNFirebaseNotificationManager {
 
   WritableMap getChannel(String channelId) {
     if (Build.VERSION.SDK_INT >= 26) {
-      return createChannelMap(notificationManager.getNotificationChannel(channelId));
+      return createChannelMap(
+        notificationManager.getNotificationChannel(channelId)
+      );
     }
 
     return null;
@@ -228,7 +237,9 @@ class RNFirebaseNotificationManager {
 
   WritableMap getChannelGroup(String channelGroupId) {
     if (Build.VERSION.SDK_INT >= 28) {
-      return createChannelGroupMap(notificationManager.getNotificationChannelGroup(channelGroupId));
+      return createChannelGroupMap(
+        notificationManager.getNotificationChannelGroup(channelGroupId)
+      );
     }
 
     return null;
@@ -236,7 +247,9 @@ class RNFirebaseNotificationManager {
 
   WritableArray getChannelGroups() {
     if (Build.VERSION.SDK_INT >= 26) {
-      return createChannelGroupsArray(notificationManager.getNotificationChannelGroups());
+      return createChannelGroupsArray(
+        notificationManager.getNotificationChannelGroups()
+      );
     }
 
     return null;
@@ -249,7 +262,9 @@ class RNFirebaseNotificationManager {
 
     for (String notificationId : notifications.keySet()) {
       try {
-        JSONObject json = new JSONObject((String) notifications.get(notificationId));
+        JSONObject json = new JSONObject(
+          (String) notifications.get(notificationId)
+        );
         Bundle bundle = BundleJSONConverter.convertToBundle(json);
         array.add(bundle);
       } catch (JSONException e) {
@@ -274,7 +289,10 @@ class RNFirebaseNotificationManager {
       StatusBarNotification[] statusBarNotifications = notificationManager.getActiveNotifications();
       for (StatusBarNotification statusBarNotification : statusBarNotifications) {
         if (tag.equals(statusBarNotification.getTag())) {
-          notificationManager.cancel(statusBarNotification.getTag(), statusBarNotification.getId());
+          notificationManager.cancel(
+            statusBarNotification.getTag(),
+            statusBarNotification.getId()
+          );
         }
       }
     }
@@ -296,7 +314,10 @@ class RNFirebaseNotificationManager {
   }
 
   private void cancelAlarm(String notificationId) {
-    Intent notificationIntent = new Intent(context, RNFirebaseNotificationReceiver.class);
+    Intent notificationIntent = new Intent(
+      context,
+      RNFirebaseNotificationReceiver.class
+    );
     PendingIntent pendingIntent = PendingIntent.getBroadcast(
       context,
       notificationId.hashCode(),
@@ -313,10 +334,13 @@ class RNFirebaseNotificationManager {
       notificationManager,
       notification,
       promise
-    ).execute();
+    )
+    .execute();
   }
 
-  private NotificationChannelGroup parseChannelGroupMap(ReadableMap channelGroupMap) {
+  private NotificationChannelGroup parseChannelGroupMap(
+    ReadableMap channelGroupMap
+  ) {
     if (Build.VERSION.SDK_INT >= 26) {
       String groupId = channelGroupMap.getString("groupId");
       String name = channelGroupMap.getString("name");
@@ -326,7 +350,9 @@ class RNFirebaseNotificationManager {
         name
       );
 
-      if (Build.VERSION.SDK_INT >= 28 && channelGroupMap.hasKey("description")) {
+      if (
+        Build.VERSION.SDK_INT >= 28 && channelGroupMap.hasKey("description")
+      ) {
         String description = channelGroupMap.getString("description");
         notificationChannelGroup.setDescription(description);
       }
@@ -340,10 +366,15 @@ class RNFirebaseNotificationManager {
   private String getFileName(Uri uri) {
     String result = null;
     if (uri.getScheme() == "content") {
-      Cursor cursor = reactContext.getContentResolver().query(uri, null, null, null, null);
+      Cursor cursor = reactContext
+        .getContentResolver()
+        .query(uri, null, null, null, null);
       try {
         if (cursor != null && cursor.moveToFirst()) {
-          result = cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME));
+          result =
+            cursor.getString(
+              cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME)
+            );
         }
       } finally {
         if (cursor != null) cursor.close();
@@ -368,7 +399,9 @@ class RNFirebaseNotificationManager {
   }
 
   @RequiresApi(api = 26)
-  private WritableArray createChannelsArray(List<NotificationChannel> notificationChannels) {
+  private WritableArray createChannelsArray(
+    List<NotificationChannel> notificationChannels
+  ) {
     WritableArray writableArray = Arguments.createArray();
 
     if (Build.VERSION.SDK_INT >= 26) {
@@ -382,13 +415,17 @@ class RNFirebaseNotificationManager {
   }
 
   @RequiresApi(api = 26)
-  private WritableArray createChannelGroupsArray(List<NotificationChannelGroup> notificationChannelGroups) {
+  private WritableArray createChannelGroupsArray(
+    List<NotificationChannelGroup> notificationChannelGroups
+  ) {
     WritableArray writableArray = Arguments.createArray();
 
     if (Build.VERSION.SDK_INT >= 26) {
       int size = notificationChannelGroups.size();
       for (int i = 0; i < size; i++) {
-        writableArray.pushMap(createChannelGroupMap(notificationChannelGroups.get(i)));
+        writableArray.pushMap(
+          createChannelGroupMap(notificationChannelGroups.get(i))
+        );
       }
     }
 
@@ -396,15 +433,26 @@ class RNFirebaseNotificationManager {
   }
 
   @RequiresApi(api = 26)
-  private WritableMap createChannelGroupMap(NotificationChannelGroup notificationChannelGroup) {
+  private WritableMap createChannelGroupMap(
+    NotificationChannelGroup notificationChannelGroup
+  ) {
     WritableMap writableMap = Arguments.createMap();
 
     if (Build.VERSION.SDK_INT >= 26) {
       writableMap.putString("groupId", notificationChannelGroup.getId());
-      writableMap.putString("name", notificationChannelGroup.getName().toString());
-      writableMap.putArray("channels", createChannelsArray(notificationChannelGroup.getChannels()));
+      writableMap.putString(
+        "name",
+        notificationChannelGroup.getName().toString()
+      );
+      writableMap.putArray(
+        "channels",
+        createChannelsArray(notificationChannelGroup.getChannels())
+      );
       if (Build.VERSION.SDK_INT >= 28) {
-        writableMap.putString("description", notificationChannelGroup.getDescription());
+        writableMap.putString(
+          "description",
+          notificationChannelGroup.getDescription()
+        );
       }
     }
 
@@ -412,7 +460,9 @@ class RNFirebaseNotificationManager {
   }
 
   @RequiresApi(api = 26)
-  private WritableMap createChannelMap(NotificationChannel notificationChannel) {
+  private WritableMap createChannelMap(
+    NotificationChannel notificationChannel
+  ) {
     if (notificationChannel == null) return null;
     WritableMap writableMap = Arguments.createMap();
 
@@ -420,7 +470,10 @@ class RNFirebaseNotificationManager {
       writableMap.putString("channelId", notificationChannel.getId());
       writableMap.putString("name", notificationChannel.getName().toString());
       writableMap.putInt("importance", notificationChannel.getImportance());
-      writableMap.putString("description", notificationChannel.getDescription());
+      writableMap.putString(
+        "description",
+        notificationChannel.getDescription()
+      );
 
       writableMap.putBoolean("bypassDnd", notificationChannel.canBypassDnd());
       writableMap.putString("group", notificationChannel.getGroup());
@@ -428,7 +481,10 @@ class RNFirebaseNotificationManager {
         "lightColor",
         String.format("#%06X", (0xFFFFFF & notificationChannel.getLightColor()))
       );
-      writableMap.putBoolean("lightsEnabled", notificationChannel.shouldShowLights());
+      writableMap.putBoolean(
+        "lightsEnabled",
+        notificationChannel.shouldShowLights()
+      );
 
       int visibility = notificationChannel.getLockscreenVisibility();
       if (visibility == -1000) { // -1000 = not set
@@ -438,8 +494,14 @@ class RNFirebaseNotificationManager {
       }
 
       writableMap.putBoolean("showBadge", notificationChannel.canShowBadge());
-      writableMap.putString("sound", getFileName(notificationChannel.getSound()));
-      writableMap.putBoolean("vibrationEnabled", notificationChannel.shouldVibrate());
+      writableMap.putString(
+        "sound",
+        getFileName(notificationChannel.getSound())
+      );
+      writableMap.putBoolean(
+        "vibrationEnabled",
+        notificationChannel.shouldVibrate()
+      );
 
       long[] vibration = notificationChannel.getVibrationPattern();
       WritableArray vibrationArray = Arguments.createArray();
@@ -461,7 +523,11 @@ class RNFirebaseNotificationManager {
       String name = channelMap.getString("name");
       int importance = channelMap.getInt("importance");
 
-      NotificationChannel channel = new NotificationChannel(channelId, name, importance);
+      NotificationChannel channel = new NotificationChannel(
+        channelId,
+        name,
+        importance
+      );
       if (channelMap.hasKey("bypassDnd")) {
         channel.setBypassDnd(channelMap.getBoolean("bypassDnd"));
       }
@@ -479,7 +545,9 @@ class RNFirebaseNotificationManager {
         channel.enableLights(channelMap.getBoolean("lightsEnabled"));
       }
       if (channelMap.hasKey("lockScreenVisibility")) {
-        channel.setLockscreenVisibility(channelMap.getInt("lockScreenVisibility"));
+        channel.setLockscreenVisibility(
+          channelMap.getInt("lockScreenVisibility")
+        );
       }
       if (channelMap.hasKey("showBadge")) {
         channel.setShowBadge(channelMap.getBoolean("showBadge"));
@@ -506,12 +574,18 @@ class RNFirebaseNotificationManager {
   }
 
   @SuppressLint("ShortAlarm")
-  private void scheduleNotification(Bundle notification, @Nullable Promise promise) {
+  private void scheduleNotification(
+    Bundle notification,
+    @Nullable Promise promise
+  ) {
     if (!notification.containsKey("notificationId")) {
       if (promise == null) {
         Log.e(TAG, "Missing notificationId");
       } else {
-        promise.reject("notification/schedule_notification_error", "Missing notificationId");
+        promise.reject(
+          "notification/schedule_notification_error",
+          "Missing notificationId"
+        );
       }
       return;
     }
@@ -520,7 +594,10 @@ class RNFirebaseNotificationManager {
       if (promise == null) {
         Log.e(TAG, "Missing schedule information");
       } else {
-        promise.reject("notification/schedule_notification_error", "Missing schedule information");
+        promise.reject(
+          "notification/schedule_notification_error",
+          "Missing schedule information"
+        );
       }
       return;
     }
@@ -545,7 +622,10 @@ class RNFirebaseNotificationManager {
       if (promise == null) {
         Log.e(TAG, "Missing schedule information");
       } else {
-        promise.reject("notification/schedule_notification_error", "Missing fireDate information");
+        promise.reject(
+          "notification/schedule_notification_error",
+          "Missing fireDate information"
+        );
       }
       return;
     }
@@ -554,10 +634,7 @@ class RNFirebaseNotificationManager {
     // We store them so that they can be re-scheduled when the phone restarts in RNFirebaseNotificationsRebootReceiver
     try {
       JSONObject json = BundleJSONConverter.convertToJSON(notification);
-      preferences
-        .edit()
-        .putString(notificationId, json.toString())
-        .apply();
+      preferences.edit().putString(notificationId, json.toString()).apply();
     } catch (JSONException e) {
       if (promise == null) {
         Log.e(TAG, "Failed to store notification");
@@ -571,20 +648,46 @@ class RNFirebaseNotificationManager {
       return;
     }
 
-    Intent notificationIntent = new Intent(context, RNFirebaseNotificationReceiver.class);
-    notificationIntent.putExtras(notification);
-    PendingIntent pendingIntent = PendingIntent.getBroadcast(
+    Intent notificationIntent = new Intent(
       context,
-      notificationId.hashCode(),
-      notificationIntent,
-      PendingIntent.FLAG_UPDATE_CURRENT
+      RNFirebaseNotificationReceiver.class
     );
+    notificationIntent.putExtras(notification);
+    PendingIntent pendingIntent;
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      pendingIntent =
+        PendingIntent.getActivity(
+          context,
+          notificationId.hashCode(),
+          notificationIntent,
+          PendingIntent.FLAG_MUTABLE
+        );
+    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      pendingIntent =
+        PendingIntent.getActivity(
+          context,
+          notificationId.hashCode(),
+          notificationIntent,
+          PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+    } else {
+      pendingIntent =
+        PendingIntent.getActivity(
+          context,
+          notificationId.hashCode(),
+          notificationIntent,
+          PendingIntent.FLAG_UPDATE_CURRENT
+        );
+    }
 
     if (schedule.containsKey("repeatInterval")) {
       // If fireDate you specify is in the past, the alarm triggers immediately.
       // So we need to adjust the time for correct operation.
       if (fireDate < System.currentTimeMillis()) {
-        Log.w(TAG, "Scheduled notification date is in the past, will adjust it to be in future");
+        Log.w(
+          TAG,
+          "Scheduled notification date is in the past, will adjust it to be in future"
+        );
         Calendar newFireDate = Calendar.getInstance();
         Calendar pastFireDate = Calendar.getInstance();
         pastFireDate.setTimeInMillis(fireDate);
@@ -601,12 +704,18 @@ class RNFirebaseNotificationManager {
             break;
           case "day":
             newFireDate.set(Calendar.MINUTE, pastFireDate.get(Calendar.MINUTE));
-            newFireDate.set(Calendar.HOUR_OF_DAY, pastFireDate.get(Calendar.HOUR_OF_DAY));
+            newFireDate.set(
+              Calendar.HOUR_OF_DAY,
+              pastFireDate.get(Calendar.HOUR_OF_DAY)
+            );
             newFireDate.add(Calendar.DATE, 1);
             break;
           case "week":
             newFireDate.set(Calendar.MINUTE, pastFireDate.get(Calendar.MINUTE));
-            newFireDate.set(Calendar.HOUR_OF_DAY, pastFireDate.get(Calendar.HOUR_OF_DAY));
+            newFireDate.set(
+              Calendar.HOUR_OF_DAY,
+              pastFireDate.get(Calendar.HOUR_OF_DAY)
+            );
             newFireDate.set(Calendar.DATE, pastFireDate.get(Calendar.DATE));
             newFireDate.add(Calendar.DATE, 7);
             break;
@@ -638,16 +747,26 @@ class RNFirebaseNotificationManager {
         if (promise == null) {
           Log.e(TAG, "Invalid interval");
         } else {
-          promise.reject("notification/schedule_notification_error", "Invalid interval");
+          promise.reject(
+            "notification/schedule_notification_error",
+            "Invalid interval"
+          );
         }
         return;
       }
 
-      alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, fireDate, interval, pendingIntent);
+      alarmManager.setRepeating(
+        AlarmManager.RTC_WAKEUP,
+        fireDate,
+        interval,
+        pendingIntent
+      );
     } else {
-      if (schedule.containsKey("exact")
-        && schedule.getBoolean("exact")
-        && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+      if (
+        schedule.containsKey("exact") &&
+        schedule.getBoolean("exact") &&
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT
+      ) {
         alarmManager.setExact(AlarmManager.RTC_WAKEUP, fireDate, pendingIntent);
       } else {
         alarmManager.set(AlarmManager.RTC_WAKEUP, fireDate, pendingIntent);
